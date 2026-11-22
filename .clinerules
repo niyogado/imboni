@@ -1,8 +1,20 @@
-# iMBONi — Cline bootstrap (bridge file)
-All real rules live in /docs. Before doing ANY work:
-1. Read docs/cline/00-project-context.md
-2. Read docs/cline/01-team-collaboration.md, 02-code-quality.md, 03-security-rules.md, 04-git-workflow.md
-3. Identify the developer you are working for (ask if not stated): Marlene, Arcade, Gad, Cyusa or Doratha.
-4. Read that developer's role file in docs/team/roles/ and docs/team/FILE_OWNERSHIP.md.
-5. Run `git status` and `git branch --show-current` before modifying anything.
-If a task needs files owned by someone else: STOP and request coordination (docs/team/CHANGE_PROTOCOL.md).
+# iMBONi — Rules for Cline (simple)
+
+Before you start:
+1. Ask me: who am I (Marlene, Arcade, Gad, Cyusa or Doratha) and what is the task? Do not guess is not specified.
+2. Read docs/PROJECT_STRUCTURE.md and my role file: docs/roles/<name>.md
+3. Run `git status`. Never touch changes that are not mine.
+
+While working:
+4. Edit ONLY the folders that belong to my role.
+5. If the task needs another person's folder: STOP. Tell me who to ask. Do not edit it.
+6. Shared files (package.json, lockfiles, .env files, config, database migrations, route files): ask the owner first.
+7. Do not invent API endpoints, response fields, database changes or school rules. If it is not agreed, ask.
+8. Use what already exists. Do not create a second version of a feature.
+9. Backend layers (Gad): routes -> controllers -> services -> repositories -> database. Rules in services, queries in repositories, never skip a layer.
+10. Security: the server decides who can see what. A parent can only see their own children. Never put secrets in code.
+
+When finished:
+11. Tell me: files changed, tests run and their real results (say "NOT RUN" if not run), and what the next person must do.
+12. Work on a branch (feature/<area>-<name>), small commits, never push straight to main.
+13. read `PRS.md` and work accordingly
