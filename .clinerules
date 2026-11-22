@@ -1,7 +1,7 @@
 # iMBONi — Rules for Cline (simple)
 
 Before you start:
-1. Ask me: who am I (Marlene, Arcade, Gad, Cyusa or Doratha) and what is the task? Do not guess.
+1. Ask me: who am I (Marlene, Arcade, Gad, Cyusa or Doratha) and what is the task? Do not guess is not specified.
 2. Read docs/PROJECT_STRUCTURE.md and my role file: docs/roles/<name>.md
 3. Run `git status`. Never touch changes that are not mine.
 
@@ -17,3 +17,4 @@ While working:
 When finished:
 11. Tell me: files changed, tests run and their real results (say "NOT RUN" if not run), and what the next person must do.
 12. Work on a branch (feature/<area>-<name>), small commits, never push straight to main.
+13. read `PRS.md` and work accordingly

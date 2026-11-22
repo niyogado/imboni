@@ -1,0 +1,411 @@
+/// iMBONi Database Schema
+/// Owner: Gad (Backend). All schema changes go through Gad via migrations.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleName {
+  PARENT
+  TEACHER
+  DISCIPLINE_STAFF
+  HEADMASTER
+  ADMINISTRATOR
+}
+
+enum MarkStatus {
+  DRAFT
+  SUBMITTED
+  PUBLISHED
+}
+
+enum IncidentStatus {
+  RECORDED
+  REVIEWED
+  APPROVED
+  REJECTED
+}
+
+enum PermissionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum NotificationChannel {
+  WHATSAPP
+  SMS
+  IN_APP
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum ConsentStatus {
+  OPTED_IN
+  OPTED_OUT
+}
+
+model Role {
+  id        Int      @id @default(autoincrement())
+  name      RoleName @unique
+  description String?
+  users     User[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id            Int      @id @default(autoincrement())
+  email         String   @unique
+  phone         String?  @unique
+  passwordHash  String
+  firstName     String
+  lastName      String
+  roleId        Int
+  role          Role     @relation(fields: [roleId], references: [id])
+  isActive      Boolean  @default(true)
+  emailVerified Boolean  @default(false)
+  phoneVerified Boolean  @default(false)
+  lastLoginAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  student       Student?
+  parent        Parent?
+  auditLogs     AuditLog[]
+
+  marks                  Mark[]
+  reviewedMarks          Mark[]        @relation("MarkReviewedBy")
+  markVersions           MarkVersion[]
+  incidents              Incident[]
+  reviewedIncidents      Incident[]    @relation("IncidentReviewedBy")
+  incidentVersions       IncidentVersion[]
+  createdRules           Rule[]
+  permissionRequests     PermissionRequest[]
+  decidedPermissionRequests PermissionRequest[] @relation("PermissionDecidedBy")
+  notifications          Notification[]
+  createdLinks           ParentStudentLink[]   @relation("LinkCreatedBy")
+
+  @@index([roleId])
+  @@index([email])
+  @@index([phone])
+}
+
+model Student {
+  id            Int       @id @default(autoincrement())
+  studentNumber String    @unique
+  firstName     String
+  lastName      String
+  dateOfBirth   DateTime?
+  gender        String?
+  admissionDate DateTime  @default(now())
+  isActive      Boolean   @default(true)
+  classId       Int?
+  class         Class?    @relation(fields: [classId], references: [id])
+  userId        Int?    @unique
+  user          User?   @relation(fields: [userId], references: [id])
+
+  marks         Mark[]
+  incidents     Incident[]
+  permissionRequests PermissionRequest[]
+  parentLinks   ParentStudentLink[]
+
+  @@index([studentNumber])
+  @@index([classId])
+  @@index([userId])
+}
+
+model Parent {
+  id          Int   @id @default(autoincrement())
+  firstName   String
+  lastName    String
+  phone       String @unique
+  email       String? @unique
+  userId      Int?    @unique
+  user        User? @relation(fields: [userId], references: [id])
+
+  parentLinks ParentStudentLink[]
+  consents    Consent[]
+
+  @@index([phone])
+  @@index([email])
+  @@index([userId])
+}
+
+model ParentStudentLink {
+  id            Int       @id @default(autoincrement())
+  parentId      Int
+  parent        Parent    @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  studentId     Int
+  student       Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  isActive      Boolean   @default(true)
+  relationship  String?
+  linkedAt      DateTime  @default(now())
+  linkedById    Int?
+  linkedBy      User?     @relation("LinkCreatedBy", fields: [linkedById], references: [id])
+
+  @@index([parentId])
+  @@index([studentId])
+  @@unique([parentId, studentId])
+  @@index([linkedById])
+}
+
+model Class {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  level       String?
+  academicYear String?
+  students    Student[]
+  subjects    Subject[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+  @@index([academicYear])
+}
+
+model Subject {
+  id          Int     @id @default(autoincrement())
+  name        String
+  code        String  @unique
+  classId     Int
+  class       Class   @relation(fields: [classId], references: [id])
+  marks       Mark[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([classId])
+  @@index([code])
+}
+
+model Mark {
+  id            Int          @id @default(autoincrement())
+  studentId     Int
+  student       Student      @relation(fields: [studentId], references: [id])
+  subjectId     Int?
+  subject       Subject?     @relation(fields: [subjectId], references: [id])
+  value         Decimal
+  maxValue      Decimal      @default(100)
+  term          String
+  academicYear  String
+  status        MarkStatus   @default(DRAFT)
+  recordedById  Int
+  recordedBy    User         @relation(fields: [recordedById], references: [id])
+  reviewedById  Int?
+  reviewedBy    User?        @relation("MarkReviewedBy", fields: [reviewedById], references: [id])
+  reviewedAt    DateTime?
+  publishedAt   DateTime?
+  version       Int          @default(1)
+  comment       String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  versions      MarkVersion[]
+
+  @@index([studentId])
+  @@index([subjectId])
+  @@index([studentId, subjectId, term, academicYear])
+  @@index([status])
+  @@index([recordedById])
+}
+
+model MarkVersion {
+  id            Int          @id @default(autoincrement())
+  markId        Int
+  mark          Mark         @relation(fields: [markId], references: [id], onDelete: Cascade)
+  value         Decimal
+  maxValue      Decimal
+  term          String
+  academicYear  String
+  status        MarkStatus
+  recordedById  Int
+  recordedBy    User         @relation(fields: [recordedById], references: [id])
+  changedAt     DateTime     @default(now())
+  changeReason  String?
+
+  @@index([markId])
+  @@index([changedAt])
+}
+
+model Incident {
+  id            Int           @id @default(autoincrement())
+  studentId     Int
+  student       Student       @relation(fields: [studentId], references: [id])
+  title         String
+  description   String
+  category      String
+  date          DateTime
+  responsibleStaffId Int
+  responsibleStaff User      @relation(fields: [responsibleStaffId], references: [id])
+  status        IncidentStatus @default(RECORDED)
+  reviewedById  Int?
+  reviewedBy    User?         @relation("IncidentReviewedBy", fields: [reviewedById], references: [id])
+  reviewedAt    DateTime?
+  decisionReason String?
+  version       Int           @default(1)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  versions      IncidentVersion[]
+
+  @@index([studentId])
+  @@index([responsibleStaffId])
+  @@index([status])
+  @@index([date])
+}
+
+model IncidentVersion {
+  id            Int           @id @default(autoincrement())
+  incidentId    Int
+  incident      Incident      @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  title         String
+  description   String
+  category      String
+  date          DateTime
+  status        IncidentStatus
+  reviewedById  Int?
+  reviewedBy    User?         @relation(fields: [reviewedById], references: [id])
+  reviewedAt    DateTime?
+  decisionReason String?
+  changedAt     DateTime     @default(now())
+  changeReason  String?
+
+  @@index([incidentId])
+  @@index([changedAt])
+}
+
+model Rule {
+  id          Int     @id @default(autoincrement())
+  title       String
+  description String?
+  category    String
+  isActive    Boolean @default(true)
+  createdById Int
+  createdBy   User    @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sanctions   Sanction[]
+  @@index([category])
+  @@index([isActive])
+}
+
+model Sanction {
+  id          Int   @id @default(autoincrement())
+  ruleId      Int
+  rule        Rule  @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  penaltyPoints Int? @default(0)
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ruleId])
+  @@index([isActive])
+}
+
+model PermissionRequest {
+  id            Int             @id @default(autoincrement())
+  studentId     Int
+  student       Student         @relation(fields: [studentId], references: [id])
+  reason        String
+  startDate     DateTime
+  expectedReturnDate DateTime
+  requesterId   Int
+  requester     User            @relation(fields: [requesterId], references: [id])
+  status        PermissionStatus @default(PENDING)
+  decidedById   Int?
+  decidedBy     User?           @relation("PermissionDecidedBy", fields: [decidedById], references: [id])
+  decidedAt     DateTime?
+  decisionReason String?
+  cancelledAt   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([studentId])
+  @@index([requesterId])
+  @@index([status])
+  @@index([startDate])
+}
+
+model Notification {
+  id          Int             @id @default(autoincrement())
+  recipientId Int
+  recipient   User            @relation(fields: [recipientId], references: [id])
+  channel     NotificationChannel
+  status      NotificationStatus @default(QUEUED)
+  subject     String?
+  content     String
+  providerMessageId String?
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  failedAt    DateTime?
+  failureReason String?
+  retryCount  Int             @default(0)
+  maxRetries  Int             @default(3)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  deliveryAttempts NotificationDeliveryAttempt[]
+
+  @@index([recipientId])
+  @@index([status])
+  @@index([channel])
+}
+
+model NotificationDeliveryAttempt {
+  id          Int   @id @default(autoincrement())
+  notificationId Int
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  channel     NotificationChannel
+  status      NotificationStatus
+  providerResponse String?
+  attemptedAt DateTime @default(now())
+
+  @@index([notificationId])
+  @@index([attemptedAt])
+}
+
+model Consent {
+  id          Int          @id @default(autoincrement())
+  parentId    Int
+  parent      Parent       @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  channel     NotificationChannel
+  status      ConsentStatus @default(OPTED_IN)
+  updatedAt   DateTime     @updatedAt
+  createdAt   DateTime     @default(now())
+
+  @@index([parentId])
+  @@unique([parentId, channel])
+}
+
+model AuditLog {
+  id          Int   @id @default(autoincrement())
+  userId      Int?
+  user        User? @relation(fields: [userId], references: [id])
+  action      String
+  entityType  String
+  entityId    Int?
+  oldValues   Json?
+  newValues   Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@index([action])
+}
